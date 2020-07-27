@@ -18,5 +18,3 @@ datos<-datos[c("ID","anio_retro","anio_nac", "residencia","sexo","niv_aprob",
              #"trabajo","pos_tra",
              "edo_civil1","edo_civil2","edo_civil3","edo_civil4","edo_civil5","edo_civil6")]
 # Removemos los datos inecesarios
-# SOS
-# Agregando más cosas para probar el git
