@@ -40,4 +40,3 @@ length(unique(datoss[datoss$edo<10 & datos$edo > 0,]$id))
 # Removemos los datos inecesarios
 
 arrange(datoss,id,año)
-#otra prueba
