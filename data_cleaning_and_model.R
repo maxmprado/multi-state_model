@@ -14,7 +14,7 @@ unlink(archivoTemporal)
 # Crearemos la variable id concatenando 3 variables 
 # Creamos la variable residencia del individuo
 # Esta información la extraemos de folioviv 
-datos <- datos %>% as_tibble()  %>% mutate(id = paste0(datos$folioviv,datos$foliohog,datos$id_pobla),
+datos <- datos  %>% mutate(id = paste0(datos$folioviv,datos$foliohog,datos$id_pobla),
                                            resid = ifelse(substr(datos$folioviv,3,3)=="6","Rural","Urbana")
                                            )
 
@@ -53,14 +53,35 @@ remover <-  unique(y %>% filter(
 
 datos <- datos %>% anti_join(remover)
 
-
 # Nos interesan únicamente los años en 
 # que hubo cambio de estado
+View(datos)
 
 # Reacomodamos los datos en un nuevo data frame de manera que tengamos toda la historia
 # En una sola columna
-View(subset(datos,edo_civil1<10 & edo_civil2<10 & edo_civil3 <10 ))
 
+
+
+View(rbind(datos %>% select(1:6,edo=edo_civil1),
+           datos %>% select(1:6,edo=edo_civil2),
+           datos %>% select(1:6,edo=edo_civil3),
+           datos %>% select(1:6,edo=edo_civil4),
+           datos %>% select(1:6,edo=edo_civil5),
+           datos %>% select(1:6,edo=edo_civil6)
+           ) %>% arrange(id, anio_retro) %>% distinct() 
+             %>% group_by(id,anio_retro,anio_nac,resid,sexo,niv_aprob)
+             %>% summarise(edo=max(edo))
+             %>% filter(edo<10)
+             %>% group_by(id,anio_nac,resid,sexo,niv_aprob,edo)
+             %>% summarise(anio_retro = min(anio_retro))
+             %>% select(id, anio_retro,anio_nac,resid,sexo,niv_aprob, edo)
+     )
+
+#
+
+
+
+##BORRAR TODO APARTIR DE AQUÍ
 names(datos) <- c("id","año","nacimiento","residencia","género","escolaridad"
                   ,"edo","edo","edo","edo","edo","edo") #rename
 
