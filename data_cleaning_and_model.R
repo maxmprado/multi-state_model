@@ -1,4 +1,5 @@
 library(dplyr)
+library(tidyr)
 #modelo multi estado para las relaciones conyugales
 
 # Descargamos los datos directamente del INEGI
@@ -62,7 +63,7 @@ View(datos)
 
 
 
-View(rbind(datos %>% select(1:6,edo=edo_civil1),
+dd<-(rbind(datos %>% select(1:6,edo=edo_civil1),
            datos %>% select(1:6,edo=edo_civil2),
            datos %>% select(1:6,edo=edo_civil3),
            datos %>% select(1:6,edo=edo_civil4),
@@ -77,20 +78,57 @@ View(rbind(datos %>% select(1:6,edo=edo_civil1),
              %>% select(id, anio_retro,anio_nac,resid,sexo,niv_aprob, edo)
      )
 
-#
+dd<-as.data.frame(dd)
+unique(dd$edo) 
+
+dd <- dd %>% mutate(id=as.factor(id),
+              resid = as.factor(resid),
+              sexo = as.factor(sexo),
+              edo = as.factor(edo),
+              niv_aprob = ifelse(is.na(niv_aprob),0,niv_aprob))
+
+
+str(dd)
+# Convertimos a formato largo para poder prepara los datos
+# con mstate.
+ddd <- dd %>% spread(key = c("edo"), value = c("anio_retro"))
 
 
 
-##BORRAR TODO APARTIR DE AQUÍ
-names(datos) <- c("id","año","nacimiento","residencia","género","escolaridad"
-                  ,"edo","edo","edo","edo","edo","edo") #rename
+dd <- (dd %>% mutate(edo = case_when(between(edo,2,4)~"M",
+                              between(edo,6,7)~"R",
+                              edo==0~"N",
+                              edo==1~"U",
+                              edo==8~"V")))
 
-datoss <- rbind(datos[-c(8,9,10,11,12)],datos[-c(7,9,10,11,12)],
-                datos[-c(7,8,10,11,12)],datos[-c(7,8,9,11,12)],
-                datos[-c(7,8,9,10,12)],datos[-c(7,8,9,10,11)])
-datoss <- datos[ ]
-View(datoss)
-length(unique(datoss[datoss$edo<10 & datos$edo > 0,]$id))
-# Removemos los datos inecesarios
+unique(dd$edo)
 
-arrange(datoss,id,año)
+levels(dd$edo) <- c("N","U","M","R","V")
+dd$edo
+library(msm)
+library(mstate)
+# matriz de transiciones con transMat
+dd%>% mutate(edo = ifelse(.))
+
+
+statetable.msm(edo,id,data = dd)
+
+msm(edo~anio_retro, subject = id, data = dd)
+
+msm( state ~ years, subject=PTNUM, data = cav,
+     + qmatrix = Q, deathexact = 4)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
