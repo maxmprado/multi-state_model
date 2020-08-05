@@ -86,41 +86,85 @@ dd <- (rbind(datos %>% select(1:6,edo=edo_civil1),
       )
 
 
+ dd <- (datos %>% select(1:6,edo=edo_civil1)
+%>%distinct()%>% arrange(id, anio_retro)
+%>% mutate(edo = ifelse(anio_retro!=anio_nac & edo == 0,100,edo))
+%>%filter(edo<10) 
+)
 
-dd <- dd %>% mutate(id=as.factor(id),
-              resid = as.factor(resid),
-              sexo = as.factor(sexo),
-              edo = as.factor(edo),
-              niv_aprob = ifelse(is.na(niv_aprob),0,niv_aprob))
 
-270152210011
+
+
 
 # Convertimos a formato largo para poder prepara los datos
 # con mstate.
 ddd <- dd %>% spread(key = c("edo"), value = c("anio_retro"))
 
-View(ddd)
+View(dd)
 
+class(dd$edo)
 
-dd <- (dd %>% mutate(edo = case_when(between(edo,2,4)~"M",
-                              between(edo,6,7)~"R",
-                              edo==0~"N",
-                              edo==1~"U",
-                              edo==8~"V")))
+dd <- (dd %>% mutate(edo = case_when(between(edo,2,4)~3,
+                              between(edo,6,7)~4,
+                              edo==0~1,
+                              edo==1~2,
+                              edo==8~5)))
 
-unique(dd$edo)
+dd <- dd %>% mutate(id=as.factor(id),
+                    resid = as.factor(resid),
+                    sexo = as.factor(sexo),
+                    edo = as.factor(edo),
+                    niv_aprob = ifelse(is.na(niv_aprob),0,niv_aprob))
 
 levels(dd$edo) <- c("N","U","M","R","V")
-dd$edo
+
+dd$anio_retro <- dd$anio_retro+dd$anio_nac
+# dd$edo <- dd$edo+1
+# dd[dd$edo>6,]$edo <- dd[dd$edo>6,]$edo - 1
+
 library(msm)
 library(mstate)
 # matriz de transiciones con transMat
-dd%>% mutate(edo = ifelse(.))
+dd[is.na(dd$niv_aprob),]$niv_aprob <- 0
+
+
+
+qmat0 <-matrix(c(0,1,1,1,1,0,0,0,
+                 0,0,1,1,1,0,1,1,
+                 0,0,0,0,0,1,1,1,
+                 0,0,0,0,0,1,1,1,
+                 0,0,0,0,0,1,1,1,
+                 0,1,1,1,1,0,0,0,
+                 0,1,1,1,1,0,0,0,
+                 0,1,1,1,1,0,0,0),
+                       nrow = 8, ncol = 8, byrow=TRUE,
+                      dimnames=list(from=1:8,to=1:8))#,
+                       #dimnames=list(c(0:4,6:8),c(0:4,6:8))) 
+
+
+qmat0 <-matrix(c(1,1,1,1,1,
+                 1,1,1,1,1,
+                 1,1,1,1,1,
+                 1,1,1,1,1,
+                 1,1,1,1,1),
+               nrow = 5, ncol = 5, byrow=TRUE,
+               dimnames=list(from=1:5,to=1:5))
+
+qmat0 <- matrix(c(0,1,1,0,0,
+                  0,0,1,1,1,
+                  0,0,0,1,1,
+                  0,1,1,0,0,
+                  0,1,1,0,0),
+                nrow = 5, ncol = 5, byrow=TRUE,
+                dimnames=list(from=1:5,to=1:5))
 
 
 statetable.msm(edo,id,data = dd)
 
-msm(edo~anio_retro, subject = id, data = dd)
+qmat1 <- crudeinits.msm(edo~anio_retro, subject = id, data = dd, qmatrix = qmat0)
+
+msm(edo~anio_retro, subject = id, data = dd, qmatrix = qmat1,control=list(fnscale=10000,maxit=500))
+
 
 msm( state ~ years, subject=PTNUM, data = cav,
      + qmatrix = Q, deathexact = 4)
