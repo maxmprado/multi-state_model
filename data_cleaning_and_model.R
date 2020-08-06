@@ -98,11 +98,10 @@ dd <- (rbind(datos %>% select(1:6,edo=edo_civil1),
 
 # Convertimos a formato largo para poder prepara los datos
 # con mstate.
-ddd <- dd %>% spread(key = c("edo"), value = c("anio_retro"))
+
+# ddd <- dd %>% spread(key = c("edo"), value = c("anio_retro"))
 
 View(dd)
-
-class(dd$edo)
 
 dd <- (dd %>% mutate(edo = case_when(between(edo,2,4)~3,
                               between(edo,6,7)~4,
@@ -113,22 +112,23 @@ dd <- (dd %>% mutate(edo = case_when(between(edo,2,4)~3,
 dd <- dd %>% mutate(id=as.factor(id),
                     resid = as.factor(resid),
                     sexo = as.factor(sexo),
-                    edo = as.factor(edo),
+                    #edo = as.factor(edo),
                     niv_aprob = ifelse(is.na(niv_aprob),0,niv_aprob))
 
 levels(dd$edo) <- c("N","U","M","R","V")
 
-dd$anio_retro <- dd$anio_retro+dd$anio_nac
+dd$anio_retro <- dd$anio_retro-dd$anio_nac
 # dd$edo <- dd$edo+1
 # dd[dd$edo>6,]$edo <- dd[dd$edo>6,]$edo - 1
 
 library(msm)
 library(mstate)
 # matriz de transiciones con transMat
-dd[is.na(dd$niv_aprob),]$niv_aprob <- 0
 
+dd <-  dd %>% filter(duplicated(id)) %>% select(id)%>%unique() %>% left_join(dd)
 
-
+length(unique(dd$id))
+(23200-18058)/23200
 qmat0 <-matrix(c(0,1,1,1,1,0,0,0,
                  0,0,1,1,1,0,1,1,
                  0,0,0,0,0,1,1,1,
@@ -142,19 +142,12 @@ qmat0 <-matrix(c(0,1,1,1,1,0,0,0,
                        #dimnames=list(c(0:4,6:8),c(0:4,6:8))) 
 
 
-qmat0 <-matrix(c(1,1,1,1,1,
-                 1,1,1,1,1,
-                 1,1,1,1,1,
-                 1,1,1,1,1,
-                 1,1,1,1,1),
-               nrow = 5, ncol = 5, byrow=TRUE,
-               dimnames=list(from=1:5,to=1:5))
 
 qmat0 <- matrix(c(0,1,1,0,0,
                   0,0,1,1,1,
                   0,0,0,1,1,
-                  0,1,1,0,0,
-                  0,1,1,0,0),
+                  0,0,0,0,0,
+                  0,0,0,0,0),
                 nrow = 5, ncol = 5, byrow=TRUE,
                 dimnames=list(from=1:5,to=1:5))
 
@@ -163,19 +156,30 @@ statetable.msm(edo,id,data = dd)
 
 qmat1 <- crudeinits.msm(edo~anio_retro, subject = id, data = dd, qmatrix = qmat0)
 
-msm(edo~anio_retro, subject = id, data = dd, qmatrix = qmat1,control=list(fnscale=10000,maxit=500))
+fit <- msm(edo~anio_retro, subject = id, data = dd  ,qmatrix = qmat1,control=list(fnscale=10000,maxit=500))
+fit <- msm(edo~anio_retro, subject = id, data = dd  ,qmatrix = qmat1, control =list(fnscale=80000,reltol = 1e-16))
+
+pearson.msm(fit)
+summary(fit)
+absorbing.msm(fit, qmatrix = qmat1)
+
+lrtest.msm(fit)
+summary.msm(fit)
+
+sojourn.msm(fit)
+plot(fit)
+pmatrix.msm(fit)
+
+qmat2 <- qmatrix.msm(fit)$estimate
 
 
-msm( state ~ years, subject=PTNUM, data = cav,
-     + qmatrix = Q, deathexact = 4)
+fit2 <- msm(edo~anio_retro, subject = id, data = dd, deathexact = c(4,5),
+            qmatrix = qmat2, covariates = ~resid )
 
 
-
-
-
-
-
-
+hazard.msm(fit2)
+pearson.msm(fit2)
+plot(fit2)
 
 
 
