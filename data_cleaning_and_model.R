@@ -87,9 +87,9 @@ dd <- (rbind(datos %>% select(1:6,edo=edo_civil1),
 
 
  dd <- (datos %>% select(1:6,edo=edo_civil1)
-%>%distinct()%>% arrange(id, anio_retro)
-%>% mutate(edo = ifelse(anio_retro!=anio_nac & edo == 0,100,edo))
-%>%filter(edo<10) 
+              %>%distinct()%>% arrange(id, anio_retro)
+              %>% mutate(edo = ifelse(anio_retro!=anio_nac & edo == 0,100,edo))
+              %>%filter(edo<10) 
 )
 
 
@@ -121,9 +121,54 @@ dd$anio_retro <- dd$anio_retro-dd$anio_nac
 # dd$edo <- dd$edo+1
 # dd[dd$edo>6,]$edo <- dd[dd$edo>6,]$edo - 1
 
-library(msm)
-library(mstate)
+#library(msm)
+
+suppressPackageStartupMessages(library(mstate))
 # matriz de transiciones con transMat
+
+edos <- dd %>% spread( key = edo, value = edo) %>%
+               select(1,"N" =7, "U"=8, "M" = 9, "S"=10, "V"=11) %>%
+               group_by(id) %>% summarise_all(sum, na.rm = T) %>%
+            mutate_at(.vars = vars("U":"V"),
+            .funs = list(~ ifelse(.>0, 1,.)))%>%
+               mutate(N = NA) %>%
+               #select("N":"V") %>% 
+               as.data.frame()
+
+times <- dd %>% mutate(anio_retro = as.numeric(anio_retro- anio_nac)) %>%
+                spread(key = edo, value = anio_retro) %>%
+                select(1:5,"tN" =6, "tU"=7, "tM" = 8, "tS"=9, "tV"=10) %>%
+                group_by(id,anio_nac,resid,sexo,niv_aprob) %>%
+                summarise_at(.vars = vars("tN":"tV"),sum, na.rm = T) %>%
+                #mutate_all(~ replace(., . == 0, NA)) %>%
+                mutate(tN = NA) %>% 
+                #select("tN":"tV") %>%
+                as.data.frame()
+
+View(ddd)
+edos
+times
+ddd <- times %>% inner_join(edos)
+transListn <- list("N" = c(2, 3), "U" = c(3,4,5), "M" = c(4,5), "S"=c(),"V"=c())
+tmat <- transMat(transListn)
+
+msprep(time=c(NA,"tU","tM", "tS","tV"),
+       status=c(NA,"U","M", "S","V"),data=ddd,
+       id="id",trans=tmat)
+
+msprep(time = times, status = edos, trans = tmat)
+
+c(times[2])
+times
+dim(edos)
+dim(times)
+tmat
+
+
+
+
+
+
 
 dd <-  dd %>% filter(duplicated(id)) %>% select(id)%>%unique() %>% left_join(dd)
 
