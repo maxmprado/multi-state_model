@@ -110,6 +110,7 @@ dd <- (dd %>% mutate(edo = case_when(between(edo,2,4)~3,
                               edo==8~5)))
 
 dd <- dd %>% mutate(id=as.factor(id),
+                    anio_retro = as.numeric(anio_retro - anio_nac),
                     resid = as.factor(resid),
                     sexo = as.factor(sexo),
                     #edo = as.factor(edo),
@@ -132,23 +133,34 @@ edos <- dd %>% spread( key = edo, value = edo) %>%
             mutate_at(.vars = vars("U":"V"),
             .funs = list(~ ifelse(.>0, 1,.)))%>%
                mutate(N = NA) %>%
-               #select("N":"V") %>% 
+               select("N":"V") %>% 
                as.data.frame()
 
-times <- dd %>% mutate(anio_retro = as.numeric(anio_retro- anio_nac)) %>%
+
+times <- dd %>%
                 spread(key = edo, value = anio_retro) %>%
                 select(1:5,"tN" =6, "tU"=7, "tM" = 8, "tS"=9, "tV"=10) %>%
                 group_by(id,anio_nac,resid,sexo,niv_aprob) %>%
                 summarise_at(.vars = vars("tN":"tV"),sum, na.rm = T) %>%
                 #mutate_all(~ replace(., . == 0, NA)) %>%
                 mutate(tN = NA) %>% 
-                #select("tN":"tV") %>%
-                as.data.frame()
+                as.data.frame() %>%
+                select("tN":"tV")
 
-View(ddd)
+
+covariates <- dd %>%
+  spread(key = edo, value = anio_retro) %>%
+  select(2:5)
+
+dim(edos)
+dim(times)
+dim(covariates)
+
 edos
 times
+covariates
 ddd <- times %>% inner_join(edos)
+
 transListn <- list("N" = c(2, 3), "U" = c(3,4,5), "M" = c(4,5), "S"=c(),"V"=c())
 tmat <- transMat(transListn)
 
@@ -156,7 +168,27 @@ msprep(time=c(NA,"tU","tM", "tS","tV"),
        status=c(NA,"U","M", "S","V"),data=ddd,
        id="id",trans=tmat)
 
-msprep(time = times, status = edos, trans = tmat)
+eder.ms <- msprep(time = times, status = edos ,trans = tmat,keep=covariates)
+
+events(eder.ms)
+eder.ms2$expand.covs(eder.ms, covs = c("resid"), append = T)
+eder.ms2<-expand.covs(eder.ms, names(covariates), append = T, longnames = F)
+attach(eder.ms2)
+detach(eder.ms2)
+eder.ms2$niv_apro
+
+coxph(Surv(Tstart, Tstop, status)~anio_nac+resid+sexo+niv_aprob,
+      data = eder.ms2, method =  "breslow")
+
+
+
+coxph( ~ dissub1.1 + dissub2.1 +
+        + age1.1 + age2.1 + drmatch.1 + tcd.1 + dissub1.2 + dissub2.2 +
+        + age1.2 + age2.2 + drmatch.2 + tcd.2 + dissub1.3 + dissub2.3 +
+        + age1.3 + age2.3 + drmatch.3 + tcd.3 + strata(trans), data = msbmt,
+      + method = "breslow")
+class(eder.ms)
+
 
 c(times[2])
 times
