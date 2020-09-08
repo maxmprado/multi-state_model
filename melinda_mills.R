@@ -57,109 +57,111 @@ datos <- datos %>% anti_join(remover2)
 
 datos <- datos %>% mutate(edo_civil2 = if_else(edo_civil2>4,0,as.numeric(edo_civil2)))
 
-
-View(dd)      
 dd <- (rbind(datos %>% select(1:6,edo=edo_civil1),
              datos %>% select(1:6,edo=edo_civil2)
-)
-%>%distinct()%>% arrange(id, anio_retro)
-%>% mutate(edo = ifelse(anio_retro!=anio_nac & edo == 0,100,edo))
-%>%filter(edo<10) %>% mutate(edo = case_when(between(edo,2,4)~3,#matrimonio
+) %>%distinct()%>% arrange(id, anio_retro) %>% 
+  mutate(edo = ifelse(anio_retro!=anio_nac & edo == 0,100,edo))%>%
+  filter(edo<10) %>% mutate(edo = case_when(between(edo,2,4)~3,#matrimonio
                                              between(edo,6,8)~4,#separación
                                              edo==0~1,#nunca unido
                                              edo==1~2)))#unión libre
+
+
 
 for (k in 1:length(dd$edo)){
   
   if ( dd$edo[k] == 1 ){
     i=1;j=1
   }
-  
+  if(dd$edo[k]==4){
+    i=10;j=10
+  }
   if(dd$edo[k]==2){
     dd$edo[k]<-dd$edo[k]*i
-    i=10
+
   }
   
   if(dd$edo[k] == 3){
     dd$edo[k]<-dd$edo[k]*j
-    j=10
+
   }
   
 }
 
-dd <- dd%>% filter(edo != 20) %>% mutate(edo = if_else(edo==30,5,as.numeric(edo)),
-                                         id=as.factor(id),
+mal_ingresados <- c()
+
+for(k in 1:(length(dd$edo)-1)) {
+  
+  if( (dd$edo[k]==dd$edo[k+1] & dd$edo[k]>1)){
+    
+    mal_ingresados <- c(dd$id[k],mal_ingresados)
+    
+    
+  }
+  
+}
+
+
+'%notin%' <- Negate('%in%')
+dd <- dd %>% filter(id %notin% mal_ingresados) %>% mutate(id=as.factor(id),
                                          anio_retro = as.numeric(anio_retro - anio_nac),
                                          resid = as.factor(resid),
                                          sexo = as.factor(sexo),
                                          #edo = as.factor(edo),
                                          niv_aprob = ifelse(is.na(niv_aprob),0,niv_aprob))
 
+
 suppressPackageStartupMessages(library(mstate))
 library(msm)
-transListn <- list("N" = c(2, 3), "U" = c(3,4,5), "M" = c(4), "S"=c(2,3,5),"MM"=c())
+
+transListn <- list("N" = c(2, 3), "U" = c(3,4), "M" = c(4), "S"=c(5,6),"U*"=c(6),"M*"=c())
 tmat <- transMat(transListn)
 
 edos <- dd %>% spread( key = edo, value = edo) %>%
-  select(1,"N" =7, "U"=8, "M" = 9, "S"=10, "MM"=11) %>%
+  select(1,"N" =7, "U"=8, "M" = 9, "S"=10, "U*"=11,"M*"=12) %>%
   group_by(id) %>% summarise_all(sum, na.rm = T) %>%
-  mutate_at(.vars = vars("U":"MM"),
+  mutate_at(.vars = vars("U":"M*"),
             .funs = list(~ ifelse(.>0, 1,.)))%>%
-  mutate(N = NA) %>% #select(id,"N":"MM") %>%
+  mutate(N = NA) %>% select("N":"M*") %>%
   as.data.frame()
 
 times <- dd %>%
   spread(key = edo, value = anio_retro) %>%
-  select(1:5,"tN" =6, "tU"=7, "tM" = 8, "tS"=9, "tMM"=10) %>%
+  select(1:5,"tN" =6, "tU"=7, "tM" = 8, "tS"=9, "tU*"=10,"tM*"=11) %>%
   group_by(id,anio_nac,resid,sexo,niv_aprob) %>%
-  summarise_at(.vars = vars("tN":"tMM"),sum, na.rm = T) %>%
+  summarise_at(.vars = vars("tN":"tM*"),sum, na.rm = T) %>%
   #mutate_all(~ replace(., . == 0, NA)) %>%
   mutate(tN = NA) %>%
-  as.data.frame() #%>% select(id,"tN":"tMM") 
+  as.data.frame() %>% select("tN":"tM*") 
+
+covariates <-dd %>%
+  spread(key = edo, value = anio_retro) %>%
+  select(2:5)
 
 
-
-
-quitar <- times %>% filter(tU>0&tU==tS|tM>0&tM==tS|tS>0&tS==tMM) %>% select(id)
-
-edos <- edos %>% anti_join(quitar) #%>% select("N":"MM")
-times <- times %>% anti_join(quitar) #%>% select("tN":"tMM")
-
-ms.data <- times %>% inner_join(edos)
-
-colnames(ms.data) <- c("id","anio_nac","resid", 
-                       "sexo","niv_aprob" ,"tN","tU","tM","tS","tMM",NA,
-                       "U","M","S","MM")  
-
-
-
-options(expressions = 500000)
-
-msprep(time = c(NA,"tU","tM","tS","tMM"), 
-       status = c(NA,"U","M","S","MM"),
-       data = ms.data,
-       start=list(state = 1, time='tN'),
-       id = "id",
+modelo <- msprep(time = times, 
+       status = edos,
+       id = as.vector(unique(dd$id)),
+       keep = covariates,
        trans = tmat)
 
 
 
-edos <- edos %>% anti_join(quitar) %>% select("N":"MM")
-times <- times %>% anti_join(quitar) %>% select("tN":"tMM")
-colnames(edos) <- c("N", "U","M","S","MM")
+events(modelo)
+events(modelo)
+modelo2<-expand.covs(modelo, names(covariates[2:3]), append = T, longnames = F)
+
+z <- coxph(Surv(Tstart, Tstop, status) ~ sexo.1 + sexo.2 + sexo.3 + sexo.4 +
+        sexo.5 + sexo.6 + sexo.7 + sexo.8 + resid.1 + resid.2 + resid.3 + resid.4 +
+        resid.5 + resid.6 + resid.7 + resid.8 , data = modelo2,
+        method = "breslow")
+
+cox.zph(z)
+
+z1 <- coxph(Surv(Tstart, Tstop, status) ~ anio_nac + resid + sexo + niv_aprob , data = modelo,
+      method = "breslow")
+
+cox.zph(z1)
 
 
-edos$N <- rep(1,length(edos$N))
-times$tN <- rep(0,length(edos$N))
-
-ed <- edos[310:315,]
-ti <- times[310:315,]
-
-msprep(time = ti, 
-       status = ed,
-       start=list(state = 1, time=0),
-       trans = tmat)
-
-
-
-debugonce(msprep)
+statetable.msm(edo,id,data = dd)
