@@ -19,12 +19,124 @@ unlink(archivoTemporal)
 
 Lo siguiente será preparar los datos. Eliminaremos aquellas columnas que correspondan a variables que no son de interés para nuestro estudio y filtraremos la información de aquellos individuos que cumplen las caracterísiticas que buscamos, es decir, no haber tenido más de una relación de manera simultánea y quitaremos la información que corresponda de la tercera relación conyugal en adelante.
 
+Primero seleccionaremos las variables
+$anio_retro, anio_nac, sexo, niv_aprob, nivel_esc, edo_civil1$ y $edo_civil2$. Adicionalmente crearemos la variable $id$ con la que identificaremos a los individuos de manera única, esta se creará concatenando las variables, $folioviv, folihogo$ y $id_pobla$ , después la variable $residencia$ la cual corresponde a una viviendo "rural" si el tercer caracter de la variable $folioviv$ es igual 3 y "urbana" en otro caso. Por último crearemos la variable $dedcada$ la cual contendra la década del siglo en la que nació el individuo.
+
+
 ```{r}
 # Crearemos la variable id concatenando 3 variables 
 # Creamos la variable residencia del individuo
 # Esta información la extraemos de folioviv 
 datos <- datos  %>% mutate(id = paste0(datos$folioviv,datos$foliohog,datos$id_pobla),
-                           resid = ifelse(substr(datos$folioviv,3,3)=="6","Rural","Urbana")
-)
+                           resid = ifelse(substr(datos$folioviv,3,3)=="6","Rural","Urbana"),
+decada = as.factor(paste0(substr(anio_nac,3,3),0))                     
+)  %>% select(id, anio_retro, anio_nac, decada, 
+                  resid, sexo,
+                  #trabajo, pos_tra,
+                  niv_aprob,nivel_esc, edo_civil1,
+                  edo_civil2)
+```
+
+En este punto procederemos a remover a los individuos que pasaron por estados los cuales no son de interés para el presente trabajo.
+
+```{r}
+# De esta tabla auxiliar extraeremos los estados
+# que no son de nuestro interés
+# Removeremos los ID de las personas cuyos estados
+# no son de interés para este análisis
+
+remover1 <- (datos %>% mutate_at(.vars = vars(edo_civil1:edo_civil2),
+                                 .funs = list(~ ifelse((.>10 & .%%10 != 0) ,(.*0+100),.))) %>% 
+               filter(
+                 nivel_esc == "&"|
+                   edo_civil1==100 |
+                   edo_civil2==100 ) %>% select(id) %>% distinct())
+
+
+
+datos <- datos %>% anti_join(remover1)
+
+```
+
+
+Ahora quitaremos a todos los que tuvieron varias parejas de manera simultánea. 
+Los valores de $1$ a $4$ y de $10$ a $40$ en columnas $edo_civil1$ y $edo_civil2$ corresponden a algun tipo de relación conyugal antes de la disolución, por lo tanto, si $edo_civil1$ y $edo_civil2$ tienen valores en los rangos antes mencionados de manera simultánea, significa que llevaban más de una relación, por lo tanto, no es de nuestro interés para el estudio.
+
+```{r}
+
+edos_rep<-c(1:4,seq(10,40, by=10))
+
+remover2 <- (unique(datos %>% filter(edo_civil1 %in% edos_rep & edo_civil2 %in% edos_rep) %>% select(id)))
+
+datos <- datos %>% anti_join(remover2)
+
+```
+
+
+Ahora adapteremos nuestros datos al modelo deseado, es decir, cualquier tipo de matrimonio será considerado un estado, cualquier tipo de separación (disolución de la unión libre o divorcio) serán considerados otro estado a excepción de la viudez. 
+Recordemos que el último estado por el cual puede pasar un individuo (si es el caso) es el segundo matrimonio.
+
+```{r eval=FALSE, include=FALSE}
+# para replicar el modelo de Melinda, nos interesa analizar 
+# a las personas que después de su primera separación, divorcio o viudez
+# entraron nuevamente a un matrimonio
+
+datos <- datos %>% mutate(edo_civil2 = if_else(edo_civil2>4,0,as.numeric(edo_civil2)))
+
+dd <- (rbind(datos %>% select(1:6,edo=edo_civil1),
+             datos %>% select(1:6,edo=edo_civil2)
+) %>%distinct()%>% arrange(id, anio_retro) %>% 
+  mutate(edo = ifelse(anio_retro!=anio_nac & edo == 0,100,edo))%>%
+  filter(edo<10) %>% mutate(edo = case_when(between(edo,2,4)~3,#matrimonio
+                                             between(edo,6,8)~4,#separación
+                                             edo==0~1,#nunca unido
+                                             edo==1~2)))#unión libre
+
+
+
+for (k in 1:length(dd$edo)){
+  
+  if ( dd$edo[k] == 1 ){
+    i=1;j=1
+  }
+  if(dd$edo[k]==4){
+    i=10;j=10
+  }
+  if(dd$edo[k]==2){
+    dd$edo[k]<-dd$edo[k]*i
+
+  }
+  
+  if(dd$edo[k] == 3){
+    dd$edo[k]<-dd$edo[k]*j
+
+  }
+  
+}
+
+mal_ingresados <- c()
+
+for(k in 1:(length(dd$edo)-1)) {
+  
+  if( (dd$edo[k]==dd$edo[k+1] & dd$edo[k]>1)){
+    
+    mal_ingresados <- c(dd$id[k],mal_ingresados)
+    
+    
+  }
+  
+}
+
+
+'%notin%' <- Negate('%in%')
+dd <- dd %>% filter(id %notin% mal_ingresados) %>% mutate(id=as.factor(id),
+                                         anio_retro = as.numeric(anio_retro - anio_nac),
+                                         resid = as.factor(resid),
+                                         sexo = as.factor(sexo),
+                                         #edo = as.factor(edo),
+                                         niv_aprob = ifelse(is.na(niv_aprob),0,niv_aprob))
+
+
+
 ```
 
