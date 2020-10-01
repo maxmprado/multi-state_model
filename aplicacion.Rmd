@@ -37,9 +37,19 @@ decada = as.factor(paste0(substr(anio_nac,3,3),0))
                   edo_civil2)
 ```
 
+Los datos se ven de la siguiente manera:
+
+```{r echo=FALSE}
+library(knitr)
+kable(head(datos))
+```
+
+Podemos ver que la información directamente de la EDER se encuentra en un formato muy parecido al $largo$, ya que, se describe la historia de cada individuo a lo largo del tiempo sin embargo, su estado civil tiene una columna particular para cada pareja.
+\
+
 En este punto procederemos a remover a los individuos que pasaron por estados los cuales no son de interés para el presente trabajo.
 
-```{r}
+```{r message=FALSE, warning=FALSE}
 # De esta tabla auxiliar extraeremos los estados
 # que no son de nuestro interés
 # Removeremos los ID de las personas cuyos estados
@@ -62,7 +72,7 @@ datos <- datos %>% anti_join(remover1)
 Ahora quitaremos a todos los que tuvieron varias parejas de manera simultánea. 
 Los valores de $1$ a $4$ y de $10$ a $40$ en columnas $edo_civil1$ y $edo_civil2$ corresponden a algun tipo de relación conyugal antes de la disolución, por lo tanto, si $edo_civil1$ y $edo_civil2$ tienen valores en los rangos antes mencionados de manera simultánea, significa que llevaban más de una relación, por lo tanto, no es de nuestro interés para el estudio.
 
-```{r}
+```{r message=FALSE, warning=FALSE}
 
 edos_rep<-c(1:4,seq(10,40, by=10))
 
@@ -73,26 +83,45 @@ datos <- datos %>% anti_join(remover2)
 ```
 
 
-Ahora adapteremos nuestros datos al modelo deseado, es decir, cualquier tipo de matrimonio será considerado un estado, cualquier tipo de separación (disolución de la unión libre o divorcio) serán considerados otro estado a excepción de la viudez. 
-Recordemos que el último estado por el cual puede pasar un individuo (si es el caso) es el segundo matrimonio.
+Originalmente, las información de la EDER tiene los estados representados de esta manera:
 
-```{r eval=FALSE, include=FALSE}
-# para replicar el modelo de Melinda, nos interesa analizar 
+```{r echo=FALSE}
+library(knitr)
+valor <- c(0:4,6:8)
+valor <- c(valor, valor*10)
+etiqueta <- c("Soltero","Unión Libre","Matromonio Civil", "Matrimonio Religioso","Matrominio Civil y Religioso", "Divorcio","Separación","Viudez")
+etiqueta<- c(etiqueta,paste0("Continua ",etiqueta))
+tab<-data.frame(cbind(valor,etiqueta))
+kable(tab)
+```
+
+
+Ahora adapteremos nuestros datos al modelo deseado.
+Lo primero que hay que notar es que el modelo sólo considera los tiempos donde hubo cambio de estado, por lo que conservaremos únicamente los valores que indique cambio de estado, es decir, los que son menores a 8.
+Otro punto importante a considerar es que cualquier tipo de matrimonio (civil, religioso o ambos) será considerado un único estado. Cualquier tipo de separación (disolución de la unión libre o divorcio) serán considerados otro estado a excepción de la viudez la cual tendrá su propio estado.
+Por último combinaremos las columnas $edo_civil1$ y $edo_civil2$ en una sola columna que llamaremos $edo$ para tener los datos en un auténtico formato largo.
+
+
+```{r}
+# Nos interesa analizar 
 # a las personas que después de su primera separación, divorcio o viudez
 # entraron nuevamente a un matrimonio
 
 datos <- datos %>% mutate(edo_civil2 = if_else(edo_civil2>4,0,as.numeric(edo_civil2)))
-
-dd <- (rbind(datos %>% select(1:6,edo=edo_civil1),
-             datos %>% select(1:6,edo=edo_civil2)
+dd <- (rbind(datos %>% select(1:7,edo=edo_civil1),
+             datos %>% select(1:7,edo=edo_civil2)
 ) %>%distinct()%>% arrange(id, anio_retro) %>% 
   mutate(edo = ifelse(anio_retro!=anio_nac & edo == 0,100,edo))%>%
   filter(edo<10) %>% mutate(edo = case_when(between(edo,2,4)~3,#matrimonio
-                                             between(edo,6,8)~4,#separación
-                                             edo==0~1,#nunca unido
-                                             edo==1~2)))#unión libre
+          between(edo,6,7)~4,#separación
+                    edo==8~5,#viudez
+                    edo==0~1,#nunca unido
+                  edo==1~2)))#unión libre
+```
 
+El siguiente bloque de código nos ayudará a identificar la unión libre y el matrimonio entre la primer pareja y la segunda.
 
+```{r}
 
 for (k in 1:length(dd$edo)){
   
@@ -113,9 +142,12 @@ for (k in 1:length(dd$edo)){
   }
   
 }
+```
 
+Por la dimensión de los datos, resulta complicado saber si hay datos mal ingresados en la base de datos, en otros términos, podríamos decir que los datos están mal ingresado si un individuo conoció a su segunda pareja antes que a la primera. En caso de que exista alguno, lo eliminaremos con el siguiente bloque de código.
+
+```{r}
 mal_ingresados <- c()
-
 for(k in 1:(length(dd$edo)-1)) {
   
   if( (dd$edo[k]==dd$edo[k+1] & dd$edo[k]>1)){
@@ -131,12 +163,37 @@ for(k in 1:(length(dd$edo)-1)) {
 '%notin%' <- Negate('%in%')
 dd <- dd %>% filter(id %notin% mal_ingresados) %>% mutate(id=as.factor(id),
                                          anio_retro = as.numeric(anio_retro - anio_nac),
+                                         decada = as.factor(decada),
                                          resid = as.factor(resid),
                                          sexo = as.factor(sexo),
                                          #edo = as.factor(edo),
                                          niv_aprob = ifelse(is.na(niv_aprob),0,niv_aprob))
-
-
-
 ```
+
+
+Ahora la tabla con los valores que representan cada estado se ven así:
+```{r echo=FALSE}
+library(knitr)
+valor2 <- c(1:5,20,30)
+etiqueta2 <- c("Nunca Unido","Unión Libre 1er Pareja","Matromonio 1er Pareja","Separación","Viudez","Unión Libre 2da Pareja","Matrimonio 2da Pareja")
+tab2<-data.frame(cbind("valor" = valor2,"etiqueta"=etiqueta2))
+kable(tab2)
+```
+
+Y los datos en formato largo y ya procesados se ven así:
+```{r echo=FALSE}
+library(knitr)
+kable(head(dd,10))
+```
+
+Ahora es mucho más claro ver la historia de vida de los individuos, por ejemplo, el primero con $id =$ $100000400711$, describe a un hombre nacido en 1975, que reside en una localidad urbana y es claro que al incio de su vida es un $nunca$ $unido$, ese será el estado inicial de todos los participantes. Luego en 1998 contrae $matrimonio$, es decir, sufre su primer cambio de estado y posteriormente hay censura pues el estudio acaba en 2017.
+
+Tenemos los datos ya preparados, lo siguiente es llamar a la paquetería $mstate$ para seguir con aplicar el modelo multi estado a los datos.
+
+```{r}
+suppressPackageStartupMessages(library(mstate))
+```
+
+
+
 
