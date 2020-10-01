@@ -188,12 +188,34 @@ kable(head(dd,10))
 
 Ahora es mucho más claro ver la historia de vida de los individuos, por ejemplo, el primero con $id =$ $100000400711$, describe a un hombre nacido en 1975, que reside en una localidad urbana y es claro que al incio de su vida es un $nunca$ $unido$, ese será el estado inicial de todos los participantes. Luego en 1998 contrae $matrimonio$, es decir, sufre su primer cambio de estado y posteriormente hay censura pues el estudio acaba en 2017.
 
-Tenemos los datos ya preparados, lo siguiente es llamar a la paquetería $mstate$ para seguir con aplicar el modelo multi estado a los datos.
+Tenemos los datos ya preparados, lo siguiente es llamar a la paquetería $mstate$ para seguir con aplicar el modelo multi-estado a los datos.
 
-```{r}
+
+```{r message=FALSE, warning=FALSE}
 suppressPackageStartupMessages(library(mstate))
 ```
 
+Empezaremos por construir la matriz de transiciones.
 
+```{r}
+transListn <- list("N" = c(2, 3), "U" = c(3,4), "M" = c(4), "S"=c(5,6),"U*"=c(6),"M*"=c())
+tmat <- transMat(transListn)
+```
 
+La paquetería $mstate$ contiene la función $msprep$ el cual nos ayuda a preparar nuestros datos para el análisis, para continuar necesitaremos definir dos dataframes que contengan las historias de vida de los individuos en formato $ancho$, el primero contendrá los estados y el segundo los tiempos en que ocurrió la transición.
+
+Empecemos por los estados.
+```{r}
+
+```
+
+Despues con los tiempos.
+```{r}
+
+```
+
+Finalmente, anexemos las covariables de cada individuo.
+```{r}
+
+```
 
