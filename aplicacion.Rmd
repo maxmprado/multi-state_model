@@ -11,7 +11,7 @@ suppressPackageStartupMessages(library(tidyr))
 
 # Descargamos los datos directamente del INEGI
 archivoTemporal<- tempfile()
-zip <-  "https://www.inegi.org.mx/contenidos/programas/eder/2017/microdatos/eder2017_bases_csv.zip"
+zip<-"https://www.inegi.org.mx/contenidos/programas/eder/2017/microdatos/eder2017_bases_csv.zip"
 download.file(zip,archivoTemporal)
 datos <- read.csv(unz(archivoTemporal,"historiavida.csv"))
 unlink(archivoTemporal)
@@ -20,7 +20,7 @@ unlink(archivoTemporal)
 Lo siguiente será preparar los datos. Eliminaremos aquellas columnas que correspondan a variables que no son de interés para nuestro estudio y filtraremos la información de aquellos individuos que cumplen las caracterísiticas que buscamos, es decir, no haber tenido más de una relación de manera simultánea y quitaremos la información que corresponda de la tercera relación conyugal en adelante.
 
 Primero seleccionaremos las variables
-$anio_retro, anio_nac, sexo, niv_aprob, nivel_esc, edo_civil1$ y $edo_civil2$. Adicionalmente crearemos la variable $id$ con la que identificaremos a los individuos de manera única, esta se creará concatenando las variables, $folioviv, folihogo$ y $id_pobla$ , después la variable $residencia$ la cual corresponde a una viviendo "rural" si el tercer caracter de la variable $folioviv$ es igual 3 y "urbana" en otro caso. Por último crearemos la variable $dedcada$ la cual contendra la década del siglo en la que nació el individuo.
+$anio$_$retro$, $anio$_$nac$, $sexo$, $niv$_$aprob$, $nivel$_$esc$, $edo$_$civil1$ y $edo$_$civil2$. Adicionalmente crearemos la variable $id$ con la que identificaremos a los individuos de manera única, esta se creará concatenando las variables, $folioviv$, $folihogo$ y $id$_$pobla$ , después la variable $residencia$ la cual corresponde a una viviendo "rural" si el tercer caracter de la variable $folioviv$ es igual 3 y "urbana" en otro caso. Por último crearemos la variable $dedcada$ la cual contendra la década del siglo en la que nació el individuo.
 
 
 ```{r}
@@ -28,13 +28,10 @@ $anio_retro, anio_nac, sexo, niv_aprob, nivel_esc, edo_civil1$ y $edo_civil2$. A
 # Creamos la variable residencia del individuo
 # Esta información la extraemos de folioviv 
 datos <- datos  %>% mutate(id = paste0(datos$folioviv,datos$foliohog,datos$id_pobla),
-                           resid = ifelse(substr(datos$folioviv,3,3)=="6","Rural","Urbana"),
-decada = as.factor(paste0(substr(anio_nac,3,3),0))                     
-)  %>% select(id, anio_retro, anio_nac, decada, 
-                  resid, sexo,
-                  #trabajo, pos_tra,
-                  niv_aprob,nivel_esc, edo_civil1,
-                  edo_civil2)
+                        resid = ifelse(substr(datos$folioviv,3,3)=="6","Rural","Urbana"),
+                       decada = as.factor(paste0(substr(anio_nac,3,3),0)))%>% 
+            select(id, anio_retro, anio_nac, decada, resid, sexo,
+                  niv_aprob,nivel_esc, edo_civil1,edo_civil2)
 ```
 
 Los datos se ven de la siguiente manera:
@@ -45,41 +42,41 @@ kable(head(datos))
 ```
 
 Podemos ver que la información directamente de la EDER se encuentra en un formato muy parecido al $largo$, ya que, se describe la historia de cada individuo a lo largo del tiempo sin embargo, su estado civil tiene una columna particular para cada pareja.
-\
 
 En este punto procederemos a remover a los individuos que pasaron por estados los cuales no son de interés para el presente trabajo.
 
 ```{r message=FALSE, warning=FALSE}
+
 # De esta tabla auxiliar extraeremos los estados
 # que no son de nuestro interés
 # Removeremos los ID de las personas cuyos estados
 # no son de interés para este análisis
 
-remover1 <- (datos %>% mutate_at(.vars = vars(edo_civil1:edo_civil2),
-                                 .funs = list(~ ifelse((.>10 & .%%10 != 0) ,(.*0+100),.))) %>% 
-               filter(
-                 nivel_esc == "&"|
-                   edo_civil1==100 |
-                   edo_civil2==100 ) %>% select(id) %>% distinct())
+remover1 <- (datos %>% 
+            mutate_at(.vars = vars(edo_civil1:edo_civil2),
+            .funs = list(~ ifelse((.>10 & .%%10 != 0) ,(.*0+100),.))) %>% 
+               filter( nivel_esc == "&"|
+                       edo_civil1==100 |
+                       edo_civil2==100 ) %>% 
+              select(id) %>% distinct())
 
 
 
 datos <- datos %>% anti_join(remover1)
-
 ```
 
 
 Ahora quitaremos a todos los que tuvieron varias parejas de manera simultánea. 
-Los valores de $1$ a $4$ y de $10$ a $40$ en columnas $edo_civil1$ y $edo_civil2$ corresponden a algun tipo de relación conyugal antes de la disolución, por lo tanto, si $edo_civil1$ y $edo_civil2$ tienen valores en los rangos antes mencionados de manera simultánea, significa que llevaban más de una relación, por lo tanto, no es de nuestro interés para el estudio.
+Los valores de $1$ a $4$ y de $10$ a $40$ en columnas $edo$_$civil1$ y $edo$_$civil2$ corresponden a algun tipo de relación conyugal antes de la disolución, por lo tanto, si $edo$_$civil1$ y $edo$_$civil2$ tienen valores en los rangos antes mencionados de manera simultánea, significa que llevaban más de una relación, por lo tanto, no es de nuestro interés para el estudio.
 
 ```{r message=FALSE, warning=FALSE}
-
 edos_rep<-c(1:4,seq(10,40, by=10))
 
-remover2 <- (unique(datos %>% filter(edo_civil1 %in% edos_rep & edo_civil2 %in% edos_rep) %>% select(id)))
+remover2 <- (unique(datos %>% 
+            filter(edo_civil1 %in% edos_rep & edo_civil2 %in% edos_rep) %>% 
+            select(id)))
 
 datos <- datos %>% anti_join(remover2)
-
 ```
 
 
@@ -113,10 +110,10 @@ dd <- (rbind(datos %>% select(1:7,edo=edo_civil1),
 ) %>%distinct()%>% arrange(id, anio_retro) %>% 
   mutate(edo = ifelse(anio_retro!=anio_nac & edo == 0,100,edo))%>%
   filter(edo<10) %>% mutate(edo = case_when(between(edo,2,4)~3,#matrimonio
-          between(edo,6,7)~4,#separación
+            between(edo,6,7)~4,#separación
                     edo==8~5,#viudez
                     edo==0~1,#nunca unido
-                  edo==1~2)))#unión libre
+                    edo==1~2)))#unión libre
 ```
 
 El siguiente bloque de código nos ayudará a identificar la unión libre y el matrimonio entre la primer pareja y la segunda.
@@ -128,17 +125,17 @@ for (k in 1:length(dd$edo)){
   if ( dd$edo[k] == 1 ){
     i=1;j=1
   }
-  if(dd$edo[k]==4){
+  
+  if(dd$edo[k]==4|dd$edo[k]==5){
     i=10;j=10
   }
+  
   if(dd$edo[k]==2){
     dd$edo[k]<-dd$edo[k]*i
-
   }
   
   if(dd$edo[k] == 3){
     dd$edo[k]<-dd$edo[k]*j
-
   }
   
 }
@@ -149,25 +146,23 @@ Por la dimensión de los datos, resulta complicado saber si hay datos mal ingres
 ```{r}
 mal_ingresados <- c()
 for(k in 1:(length(dd$edo)-1)) {
-  
   if( (dd$edo[k]==dd$edo[k+1] & dd$edo[k]>1)){
-    
     mal_ingresados <- c(dd$id[k],mal_ingresados)
-    
-    
   }
   
 }
 
-
+# crearemos el operador notin
+# el cual nos devolverá el valor verdadero o falso 
+# si un valor se encuentra en un vector, lista, dataframe, etc.
 '%notin%' <- Negate('%in%')
-dd <- dd %>% filter(id %notin% mal_ingresados) %>% mutate(id=as.factor(id),
-                                         anio_retro = as.numeric(anio_retro - anio_nac),
-                                         decada = as.factor(decada),
-                                         resid = as.factor(resid),
-                                         sexo = as.factor(sexo),
-                                         #edo = as.factor(edo),
-                                         niv_aprob = ifelse(is.na(niv_aprob),0,niv_aprob))
+dd <- dd %>% filter(id %notin% mal_ingresados) %>% 
+              mutate(id=as.factor(id),
+                      anio_retro = as.numeric(anio_retro - anio_nac),
+                      decada = as.factor(decada),
+                      resid = as.factor(resid),
+                      sexo = as.factor(sexo),
+                      niv_aprob = ifelse(is.na(niv_aprob),0,niv_aprob))
 ```
 
 
@@ -176,7 +171,8 @@ Ahora la tabla con los valores que representan cada estado se ven así:
 library(knitr)
 valor2 <- c(1:5,20,30)
 etiqueta2 <- c("Nunca Unido","Unión Libre 1er Pareja","Matromonio 1er Pareja","Separación","Viudez","Unión Libre 2da Pareja","Matrimonio 2da Pareja")
-tab2<-data.frame(cbind("valor" = valor2,"etiqueta"=etiqueta2))
+t3 <- c("N","U","M","S","V","U*","M*")
+tab2<-data.frame(cbind("valor" = valor2,"id_estado"=t3,"etiqueta"=etiqueta2))
 kable(tab2)
 ```
 
@@ -184,6 +180,7 @@ Y los datos en formato largo y ya procesados se ven así:
 ```{r echo=FALSE}
 library(knitr)
 kable(head(dd,10))
+
 ```
 
 Ahora es mucho más claro ver la historia de vida de los individuos, por ejemplo, el primero con $id =$ $100000400711$, describe a un hombre nacido en 1975, que reside en una localidad urbana y es claro que al incio de su vida es un $nunca$ $unido$, ese será el estado inicial de todos los participantes. Luego en 1998 contrae $matrimonio$, es decir, sufre su primer cambio de estado y posteriormente hay censura pues el estudio acaba en 2017.
@@ -196,26 +193,60 @@ suppressPackageStartupMessages(library(mstate))
 ```
 
 Empezaremos por construir la matriz de transiciones.
-
+La cual se ve de la siguiente manera:
 ```{r}
-transListn <- list("N" = c(2, 3), "U" = c(3,4), "M" = c(4), "S"=c(5,6),"U*"=c(6),"M*"=c())
+transListn <- list("N" = c(2, 3), "U" = c(3,4,5), "M" = c(4,5),
+                   "S"=c(6,7),"V"=c(6,7),"U*"=c(7),"M*"=c())
 tmat <- transMat(transListn)
+tmat
 ```
 
 La paquetería $mstate$ contiene la función $msprep$ el cual nos ayuda a preparar nuestros datos para el análisis, para continuar necesitaremos definir dos dataframes que contengan las historias de vida de los individuos en formato $ancho$, el primero contendrá los estados y el segundo los tiempos en que ocurrió la transición.
 
-Empecemos por los estados.
+Seguiremos por los estados.
 ```{r}
-
+edos <-dd %>% spread( key = edo, value = edo) %>% 
+  select(1,"N" =8, "U"=9, "M" = 10, "S"=11, "V"=12, "U*"=13,"M*"=14)%>%
+  group_by(id) %>% summarise_all(sum, na.rm = T)%>%
+  mutate_at(.vars = vars("U":"M*"),
+            .funs = list(~ ifelse(.>0, 1,.)))%>%
+  mutate(N = NA) %>% select("N":"M*") %>%
+  as.data.frame()
 ```
 
-Despues con los tiempos.
-```{r}
 
+Continuemos con el dataframe de los tiempos.
+```{r}
+times <- dd%>%spread(key = edo, value = anio_retro)%>%
+  select(1:6,"tN" =7, "tU"=8, "tM" = 9, "tS"=10, "tV"=11,"tU*"=12,"tM*"=13) %>%
+  group_by(id,anio_nac,resid,sexo,niv_aprob) %>%
+  summarise_at(.vars = vars("tN":"tM*"),sum, na.rm = T) %>%
+  mutate(tN = NA) %>%
+  as.data.frame() %>% select("tN":"tM*") 
 ```
+
 
 Finalmente, anexemos las covariables de cada individuo.
 ```{r}
-
+covariates <-dd %>%
+  spread(key = edo, value = anio_retro) %>%
+  select(3:6)
 ```
+
+
+Ahora podemos convertir nuestros datos en un objeto $msdata$
+```{r warning=FALSE}
+modelo<-msprep(time = times, 
+       status = edos,
+       id = as.vector(unique(dd$id)),
+       keep = covariates,
+       trans = tmat)
+```
+
+Veamos la matriz de frencuencias de transición de nuestros datos.
+```{r}
+events(modelo)[1]
+```
+
+
 
