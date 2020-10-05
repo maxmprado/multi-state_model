@@ -187,7 +187,7 @@ Ahora es mucho más claro ver la historia de vida de los individuos, por ejemplo
 
 Tenemos los datos ya preparados, lo siguiente es llamar a la paquetería $mstate$ para seguir con aplicar el modelo multi-estado a los datos.
 
-
+\pagebreak
 ```{r message=FALSE, warning=FALSE}
 suppressPackageStartupMessages(library(mstate))
 ```
@@ -236,7 +236,7 @@ covariates <-dd %>%
 
 Ahora podemos convertir nuestros datos en un objeto $msdata$
 ```{r warning=FALSE}
-modelo<-msprep(time = times, 
+ms.obj<-msprep(time = times, 
        status = edos,
        id = as.vector(unique(dd$id)),
        keep = covariates,
@@ -245,8 +245,18 @@ modelo<-msprep(time = times,
 
 Veamos la matriz de frencuencias de transición de nuestros datos.
 ```{r}
-events(modelo)[1]
+events(ms.obj)[1]
 ```
 
+```{r}
+exp.ms.obj <- expand.covs(ms.obj, c("decada","residencia","sexo","niv_aprob"))
 
+coxph(Surv(Tstart,Tstop,status)~
+.1+.2+.3+.4+.5+.6+.7+.8+.9+.10+.11+.12+
+.1+.2+.3+.4+.5+.6+.7+.8+.9+.10+.11+.12+
+.1+.2+.3+.4+.5+.6+.7+.8+.9+.10+.11+.12+
+.1+.2+.3+.4+.5+.6+.7+.8+.9+.10+.11+.12+
+strata(trans),
+data=exp.ms.obj,method="breslow")
+```
 
