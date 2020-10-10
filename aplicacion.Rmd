@@ -260,6 +260,7 @@ events(ms.obj)[1]
 
 
 ```{r}
+#Riesgos estratificados
 exp.ms.obj <-expand.covs(ms.obj,c("decada","resid","sexo","niv_aprob"))
 
 c0<-coxph(Surv(Tstart,Tstop,status)~strata(trans),
@@ -284,14 +285,22 @@ cx <- coxph(Surv(Tstart,Tstop,status)~
 
 
 
-# summary(cx)
-# strata(tmat)
-# paths(tmat)
-# expand.covs(ms.obj)
-# cx <- coxph(Surv(Tstart,Tstop,status)~x1.1+x2.2+strata(trans),
-# data=tglong,method="breslow")
-# summary(cx)
+# summary(c0)
+```
 
+```{r}
+msf0 <- msfit(object = c0, vartype = "greenwood", trans = tmat)
+summary(msf0)
+plot(msf0, las = 1, lty = rep(1:2, c(8, 4)),xlab = "Años")
+summary(pt0<-probtrans(msf0, predt = 0, method = "greenwood"), from = 1)
+```
+
+```{r}
+library("colorspace")
+statecols <- heat_hcl(6, c = c(80, 30), l = c(30, 90),ower = c(1/5, 2))[c(6, 5, 3, 4, 2, 1)]
+ord <- c(7:1)
+
+plot(pt0, ord = ord, xlab = "Edad",las = 1, type = "filled")
 ```
 
 
