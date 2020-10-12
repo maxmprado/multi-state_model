@@ -300,7 +300,44 @@ library("colorspace")
 statecols <- heat_hcl(6, c = c(80, 30), l = c(30, 90),ower = c(1/5, 2))[c(6, 5, 3, 4, 2, 1)]
 ord <- c(7:1)
 
+
 plot(pt0, ord = ord, xlab = "Edad",las = 1, type = "filled")
+```
+
+
+```{r message=FALSE, warning=FALSE}
+# Estimación del modelo de Markov con riesgos proporcionales
+
+exp.ms.obj$pr <- 0
+strat0 <- c(1,2,4,5,8,9)
+strat1 <- c(3,6,7,10,11)
+exp.ms.obj <- exp.ms.obj %>% mutate(pr = case_when(trans%in% strat0~0,
+                                     trans%in% strat1~1,
+                                     trans==12~2))
+
+# m.c0 <- coxph(Surv(Tstart,Tstop,status)~pr+strata(to),
+#               data = exp.ms.obj,method = "breslow")
+
+m.cx <- coxph(Surv(Tstart,Tstop,status)~
+            decada70.1+decada70.2+decada70.3+decada70.4+decada70.5+decada70.6+decada70.7+
+            decada70.8+decada70.9+decada70.10+decada70.11+decada70.12+
+            decada80.1+decada80.2+decada80.3+decada80.4+decada80.5+decada80.6+decada80.7+
+            decada80.8+decada80.9+decada80.10+decada80.11+decada80.12+
+            decada90.1+decada90.2+decada90.3+decada90.4+decada90.5+decada90.6+decada90.7+
+            decada90.8+decada90.9+decada90.10+decada90.11+decada90.12+
+            residUrbana.1+residUrbana.2+residUrbana.3+residUrbana.4+residUrbana.5+
+            residUrbana.6+residUrbana.7+residUrbana.8+residUrbana.9+residUrbana.10+
+            residUrbana.11+residUrbana.12+
+            sexo2.1+sexo2.2+sexo2.3+sexo2.4+sexo2.5+sexo2.6+sexo2.7+sexo2.8+sexo2.9+
+            sexo2.10+sexo2.11+sexo2.12+
+            niv_aprob.1+niv_aprob.2+niv_aprob.3+niv_aprob.4+niv_aprob.5+niv_aprob.6+
+            niv_aprob.7+niv_aprob.8+niv_aprob.9+niv_aprob.10+niv_aprob.11+niv_aprob.12+
+            pr+strata(to),
+            data = exp.ms.obj,method = "breslow")
+
+m.c0
+cox.zph(m.cx)
+
 ```
 
 
