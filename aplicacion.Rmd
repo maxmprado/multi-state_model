@@ -260,41 +260,104 @@ events(ms.obj)[1]
 
 Ahora, para nuestro conjunto de datos en este formato, agregaremos las covariables específicas de tipo. Utilizando la función $expando.covs()$ podemos desagregar nuestras covariables ordinarias en covariables específicas de tipo y se añadirán automáticamente a nuestro dataframe. A este lo llamaremos $exp.ms.obj$ haciendo referencia que las covaribales están están expandidas.
 
+
 ```{r}
 exp.ms.obj <-expand.covs(ms.obj,c("decada","resid","sexo","niv_aprob"))
 ```
 
-
-Para este estudio consideraremos únicamente dos modelos: Modelo No Parámetrico y Modelo Semi-paramétrico. Sin embargo, en ambos casos se considera un modelo de riesgos estratificados.
-
-En el primer modelo, como mencionamos en capítulos anteriores, no haremos uso de las covariables, servirá unicamente para ver las probabilidades de transición de un estado a otro según las edades bajo el supuesto de que las carácterísticas de todas las personas en observación no son significativas.
-
+Después de transformar los datos, podemos notar que para cada covariable, creó 12 covariables nuevas.
+Tomemos como ejemplo $sexo$.
 
 ```{r}
-
-c0<-coxph(Surv(Tstart,Tstop,status)~strata(trans),
-            data = exp.ms.obj,method = "breslow")
+kable(matrix(names(exp.ms.obj)[62:73],4,3))
 ```
 
+En la tabla anterior podemos ver que por la covariable $sexo$ creo 12 más con el nombre sexo2. seguido de un número que puede ir del 1 al 12. El 2 en $sexo2$ hace referencia al segundo valor que puede tomar la variable original sexo, es decir, está tomando el valor 1 como referencia. Los números se refieren a la transición, es decir, si una persona en el estudio es de género femenino y está pasando de $Nunca$ $Unido$ a $Unión$ $Libre$ (transición 1) la covarible $sexo2.1$ será igual a uno, por otra lado, si pasa de $Nunca$ $Unido$ a $Matrimonio$ (transición 2), $sexo2.1$ será igual a cero y será $sexo2.1$ la que sea igual a uno.
+
+Estas covariables funcionan como variables $dummies$ que nos ayudarán a identificar su impacto en cada una de las transiciones.
+
+Teniendo esta información consideraremos únicamente dos modelos: Modelo No Paramétrico y Modelo Semi-paramétrico. Sin embargo, en ambos casos se considera un modelo de riesgos estratificados.
+
+# Modelo No Paramétrico
+
+En el primer modelo, como mencionamos en capítulos anteriores, no haremos uso de las covariables, servirá unicamente para ver las probabilidades de transición, sin embargo haremos distinción entre los inviduos por la década en la que nacieron, esto para que sean comparables las probabilidades antes mencionades.
+
+
+Ajustamos el modelo No Paramétrico. 
 ```{r}
-msf0 <- msfit(object = c0, vartype = "greenwood", trans = tmat)
-#summary(msf0)
-plot(msf0, las = 1, lty = rep(1:2, c(8, 4)),xlab = "Años")
-summary(pt0<-probtrans(msf0, predt = 0, method = "greenwood"), from = 1)
+data.60 <- exp.ms.obj %>% filter(decada == 60)
+data.70 <- exp.ms.obj %>% filter(decada == 70)
+data.80 <- exp.ms.obj %>% filter(decada == 80)
+data.90 <- exp.ms.obj %>% filter(decada == 90)
+
+
+c60 <-coxph(Surv(Tstart,Tstop,status)~strata(trans),data = data.60,method = "breslow")
+c70 <-coxph(Surv(Tstart,Tstop,status)~strata(trans),data = data.70,method = "breslow")
+c80 <-coxph(Surv(Tstart,Tstop,status)~strata(trans),data = data.80,method = "breslow")
+c90 <-coxph(Surv(Tstart,Tstop,status)~strata(trans),data = data.90,method = "breslow")
+
+#c0<-coxph(Surv(Tstart,Tstop,status)~strata(trans),
+ #           data = exp.ms.obj,method = "breslow")
 ```
+
+Y en la siguientes gráficas podemos visualizar sus funciones acumuladas de intensidad, para cada transición.
+
+```{r warning=FALSE}
+msf60 <- msfit(object = c60, vartype = "greenwood", trans = tmat)
+plot(msf60, las = 1, lty = rep(1:2, c(8, 4)),xlab = "Años", ylab = 'Función Acumulada de Riesgo', main ="Década de los 60")
+pt60<-probtrans(msf60, predt = 0, method = "greenwood")
+
+msf70 <- msfit(object = c70, vartype = "greenwood", trans = tmat)
+plot(msf70, las = 1, lty = rep(1:2, c(8, 4)),xlab = "Años", main ="Década de los 70")
+pt70<-probtrans(msf70, predt = 0, method = "greenwood")
+
+msf80 <- msfit(object = c80, vartype = "greenwood", trans = tmat)
+plot(msf80, las = 1, lty = rep(1:2, c(8, 4)),xlab = "Años", main ="Década de los 80" )
+pt80<-probtrans(msf80, predt = 0, method = "greenwood")
+
+msf90 <- msfit(object = c90, vartype = "greenwood", trans = tmat)
+plot(msf90, las = 1, lty = rep(1:2, c(8, 4)),xlab = "Años", main ="Década de los 90")
+pt90<-probtrans(msf90, predt = 0, method = "greenwood")
+```
+
+
+```{r message=FALSE, warning=FALSE}
+# msf0 <- msfit(object = c0, vartype = "greenwood", trans = tmat)
+# summary(msf0)
+# plot(msf0, las = 1, lty = rep(1:2, c(8, 4)),xlab = "Años")
+# pt0<-probtrans(msf0, predt = 0, method = "greenwood")
+```
+
+En la siguientes gráficas podemos apreciar la probabilidad, dada nuestra población, de estar en un estado según la edad.
+
+
 
 ```{r}
 library("colorspace")
 statecols <- heat_hcl(6, c = c(80, 30), l = c(30, 90))[c(6, 5, 3, 4, 2, 1)]
-ord <- c(7:1)
-
-
-plot(pt0, ord = ord, xlab = "Edad", ylab = "Probabilidad",las = 1, type = "filled")
+ord <- c(1:7)
+plot(pt60, ord = ord, xlab = "Edad", ylab = "Probabilidad",las = 1, type = "filled", main ="Década de los 60")
+plot(pt70, ord = ord, xlab = "Edad", ylab = "Probabilidad",las = 1, type = "filled", main ="Década de los 70")
+plot(pt80, ord = ord, xlab = "Edad", ylab = "Probabilidad",las = 1, type = "filled", main ="Década de los 80")
+plot(pt90, ord = ord, xlab = "Edad", ylab = "Probabilidad",las = 1, type = "filled", main 
+="Década de los 90")
 ```
+Las áreas coloreadas en estas gráficas representan la probabilidad que tiene un inviduo de estar en cierto estado; las primeras tres tonalidades de verde corresponden a los estados $Nunca$ $Unido$, $Unión$ $Libre$ y $Matrimonio$ de más oscuro a más claro. En el extremo de la gráfica podemos ver las letras a las que corresponden los nombres de los estados, únicamente $Nunca$ $Unido$ no aparece por las dimensiones de la gráfica.
+
+Lo primero que cabe destacar, es que a lo largo de las 4 generaciones que tenemos, la probabilidad de encontrarse en el estado $Nunca$ $Unido$ no ha presentado cambios significativos, es decir, mediante las gráficas podemos notar que hasta poco antes de los 15 años, los jovenes permanecen en este estado.
+
+Por otra parte, lo más evidente es el cambio en los estados $Matrimonio$ y $Unión$ $Libre$, pues de las generaciones que tenemos información, en las tres primeras, la probabilidad de estar en $Matrimonio$ es notoriamente mayor, sin embargo, se percibe un incremento en la probabilidad de de estar $Unión$ $Libre$ conforme pasan las décadas, hasta que para los individuos nacidos en los años 90 se invierte y el estado $Unión$ $Libre$ predomina sobre el $Matrimonio$ para individuos entre 20 y 30 años.
+
+Para los estados restantes no hay mucho que decir, a simple vista parecen presentar variaciones poco importantes tras generaciones.
 
 
+# Modelo Semi-paramétrico
 
-```{r}
+Ahora volveremos a ajustar un modelo de riesgos estratificados pero considerando todas las covariables específicas de tipo, esto nos ayudará a identificar mejor las características que más influyen en las transiciones entre estados.
+
+llamaremos a este modelo $cfull$ haciendo referencia a que estamos usando todas las covariables.
+
+```{r warning=FALSE}
 
 cfull <- coxph(Surv(Tstart,Tstop,status)~
             decada70.1+decada70.2+decada70.3+decada70.4+decada70.5+decada70.6+decada70.7+
@@ -314,3 +377,23 @@ cfull <- coxph(Surv(Tstart,Tstop,status)~
             data = exp.ms.obj,method = "breslow")
 ```
 
+Primero analizaremos la significancia de todas las covaribles que compartan transición, por ejemplo, $decada70.1$ y $sexo2.1$ nos indicaran la importancia que tienen que para la transición 1 de $Nunca$ $Unido$ a $Unión$ $Libre$ y las transiciones diferentes que lleguen al mismo estado, como las transiciones 2 y 3 que respectivamente parten de $Nunca$ $Unido$ y $Unión$ pero ambas llegan a $Matrimonio$.
+
+```{r}
+summary(cfull)
+```
+Para la transición 1 ($Nunca$ $Unido$ a $Unión$ $Libre$)
+Tenemos todas las variables consideradas fueron estadísticamente significativas, es decir,
+$decada70.1$, $decada80.1$, $decada90.1$, $residUrbana.1$, $sexo2.1$, $niv_aprob.1$ tienen un efecto diferente a la variable de referencia.
+
+Para las transiciones 2 y 3 ($Nunca$ $Unido$ a $Matrimonio$ y $Unión$ $Libre$ a $Matrimonio$)
+
+Para las transiciones 4 y 6
+
+Para las transiciones 5 y 7
+
+Para las transiciones 8 y 10
+
+Para las transiciones 9, 10 y 11
+
+Unión Libre(1), Matrimonio(2,3), Soltero(4,6), Viudez(5,7), $U*$(8,10), $M*$(9,11,12)
