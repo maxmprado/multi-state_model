@@ -284,6 +284,7 @@ En el primer modelo, como mencionamos en capítulos anteriores, no haremos uso d
 
 
 Ajustamos el modelo No Paramétrico. 
+
 ```{r}
 data.60 <- exp.ms.obj %>% filter(decada == 60)
 data.70 <- exp.ms.obj %>% filter(decada == 70)
@@ -295,9 +296,6 @@ c60 <-coxph(Surv(Tstart,Tstop,status)~strata(trans),data = data.60,method = "bre
 c70 <-coxph(Surv(Tstart,Tstop,status)~strata(trans),data = data.70,method = "breslow")
 c80 <-coxph(Surv(Tstart,Tstop,status)~strata(trans),data = data.80,method = "breslow")
 c90 <-coxph(Surv(Tstart,Tstop,status)~strata(trans),data = data.90,method = "breslow")
-
-#c0<-coxph(Surv(Tstart,Tstop,status)~strata(trans),
- #           data = exp.ms.obj,method = "breslow")
 ```
 
 Y en la siguientes gráficas podemos visualizar sus funciones acumuladas de intensidad, para cada transición.
@@ -332,8 +330,9 @@ En la siguientes gráficas podemos apreciar la probabilidad, dada nuestra poblac
 
 
 
-```{r}
+```{r fig.height=5}
 library("colorspace")
+par(mfrow=c(2,2))
 statecols <- heat_hcl(6, c = c(80, 30), l = c(30, 90))[c(6, 5, 3, 4, 2, 1)]
 ord <- c(1:7)
 plot(pt60, ord = ord, xlab = "Edad", ylab = "Probabilidad",las = 1, type = "filled", main ="Década de los 60")
@@ -387,13 +386,22 @@ Tenemos todas las variables consideradas fueron estadísticamente significativas
 $decada70.1$, $decada80.1$, $decada90.1$, $residUrbana.1$, $sexo2.1$, $niv_aprob.1$ tienen un efecto diferente a la variable de referencia.
 
 Para las transiciones 2 y 3 ($Nunca$ $Unido$ a $Matrimonio$ y $Unión$ $Libre$ a $Matrimonio$)
+La variable $decada70.2$ resulta signficativa pero $decada70.3$ no.
+En cambio, $decada80.2$ , $decada80.3$, $decada90.2$ y $decada90.3$ son todas significativas.
+Las covariables relacionadas con la residencia, sólo $residUrbana.3$ es significativa.
+En el caso del género, $sexo2.2$ y $sexo2.3$ son significativas. Al igual que $niv_aprob.2$ y $niv_aprob.3$ son significativas.
 
-Para las transiciones 4 y 6
+Para las transiciones 4 y 6 ($Unión$ $Libre$ a $Separado$ y $Matrimonio$ a $Separado$)
+Las covariables significativas relacionadas con las décadas fueron $decada70.6$, $decada80.4$, $decada80.6$, $decada90.4$ y $decada90.6$.
+En cuanto a residencia ambas $residencia.4$ y $residencia.6$ son significativas.
+En cuanto al género sólo $sexo2.6$ y en la escolaridad $niv_aprob.4$ y $niv_aprob.6$ fueron significativas.
 
-Para las transiciones 5 y 7
+Para las transiciones 5 y 7 ($Unión$ $Libre$ a $Viudez$ y $Matrimonio$ a $Viudez$)
+$sexo2.7$
 
-Para las transiciones 8 y 10
+Para las transiciones 8 y 10 ($Separado$ a $Unión$ $Libre$ $Segunda$ $Pareja$  y $Viudez$ a $Unión$ $Libre$ $Segunda$ $Pareja$)
+$decada80.8$ $decada90.8$ $sexo2.8$ $sexo2.10$ $niv_aprob.8$
 
-Para las transiciones 9, 10 y 11
+Para las transiciones 9, 11 y 12 ($Separado$ a $Matrimonio$ $Segunda$ $Pareja$, $Viudez$ a $Matrimonio$ $Segunda$ $Pareja$ y $Unión$ $Libre$ $Segunda$ $Pareja$ a $Matrimonio$ $Segunda$ $Pareja$)
+$decada80.9$ $decada90.9$ $sexo2.9$ $niv_aprob.9$ $niv_aprob.12$
 
-Unión Libre(1), Matrimonio(2,3), Soltero(4,6), Viudez(5,7), $U*$(8,10), $M*$(9,11,12)
